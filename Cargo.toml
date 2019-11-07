@@ -1,0 +1,17 @@
+[package]
+name = "rust-bloomfilter"
+version = "0.0.1"
+authors = ["Srinivas Reddy Thatiparthy <thatiparthysreenivas@gmail.com>"]
+edition = "2018"
+license = "MIT"
+repository = "https://github.com/srinivasreddy/rust-bloomfilter"
+description = """
+A simple bloom filter implementation in Rust programming language.
+"""
+categories = ["bloom-filter", "probabilistic-datastructure"]
+
+
+[dependencies]
+bit-vec = "0.6.1"
+fasthash = "0.4"
+bigint = "4.4.1"
