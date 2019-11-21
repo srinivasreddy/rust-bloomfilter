@@ -34,7 +34,7 @@ impl BloomFilter {
         if capacity == 0 {
             panic!("capacity must be a greater than zero");
         }
-        if error_rate == 0.0 {
+        if error_rate <= 0.0 {
             panic!("error_rate must be greater than zero");
         }
         let num_of_bits = nbits(capacity, error_rate);
