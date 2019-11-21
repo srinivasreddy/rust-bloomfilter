@@ -146,7 +146,7 @@ mod tests {
     }
 
     #[test]
-    fn test_multiple_element() {
+    fn test_multiple_elements() {
         let mut b = BloomFilter::from_elem(20000, 0.01);
         let elements = vec![
             "Srinivas",
