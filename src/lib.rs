@@ -16,7 +16,7 @@ pub struct BloomFilter {
 }
 
 // m = math.ceil((n * math.log(p)) / math.log(1.0 / (pow(2.0, math.log(2.0)))))
-
+#[inline]
 fn nbits(n: usize, p: f64) -> usize {
     let numerator = n as f64 * p.ln();
     let denominator = (1.0_f64 / 2.0_f64.powf(2.0_f64.ln())).ln();
@@ -24,7 +24,7 @@ fn nbits(n: usize, p: f64) -> usize {
 }
 
 // k = round((m / n) * math.log(2));
-
+#[inline]
 fn iterations(m: usize, n: usize) -> usize {
     ((m as f64 / n as f64) * 2.0_f64.ln()).round() as usize
 }
@@ -67,9 +67,9 @@ impl BloomFilter {
         self.len() == 0
     }
 
-    pub fn add(&mut self, data: &str) {
+    pub fn add(&mut self, data: &[u8]) -> Result<bool, &'static str> {
         if self.num_of_elements == self.capacity {
-            panic!("You are adding to the bloom filter that is full");
+            return Err("You are adding to the bloom filter that is full");
         }
         let hash = hash128(data);
         let hash64_first = (hash & (2_u128.pow(64) - 1)) as u64;
@@ -82,9 +82,10 @@ impl BloomFilter {
             self.bitvec.set(index.as_u64() as usize, true);
         }
         self.num_of_elements += 1;
+        Ok(true)
     }
 
-    pub fn contains(&self, data: &str) -> bool {
+    pub fn contains(&self, data: &[u8]) -> bool {
         let hash = hash128(data);
         let hash64_first = (hash & (2_u128.pow(64) - 1)) as u64;
         let hash64_second = (hash >> 64) as u64;
@@ -108,8 +109,8 @@ mod tests {
     #[test]
     fn test_single_element() {
         let mut b = BloomFilter::from_elem(20000, 0.01);
-        b.add("Test");
-        assert!(b.contains("Test"));
+        assert!(b.add("Test".as_ref()).unwrap(), true);
+        assert!(b.contains("Test".as_ref()));
     }
     #[test]
     #[should_panic]
@@ -129,7 +130,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn test_full_bloom_filter() {
         let mut b = BloomFilter::from_elem(10, 0.01);
         // Add 11 elements to the 10 capacity Bloomfilter
@@ -146,9 +146,13 @@ mod tests {
             "Gundrapally1",
             "Telangana1",
         ];
-        for element in &elements {
-            b.add(element);
+        for element in &elements[..9] {
+            assert!(b.add(element.as_ref()).unwrap(), true);
         }
+        assert!(
+            b.add((&elements[10]).as_ref()).unwrap(),
+            "You are adding to the bloom filter that is full"
+        );
     }
 
     #[test]
@@ -164,12 +168,12 @@ mod tests {
             "506122",
         ];
         for element in &elements {
-            b.add(element);
+            b.add(element.as_ref()).unwrap();
         }
         for element in &elements {
-            assert!(b.contains(element));
+            assert!(b.contains(element.as_ref()));
         }
-        assert_eq!(b.contains("rajaa"), false);
+        assert_eq!(b.contains("rajaa".as_ref()), false);
         assert_eq!(elements.len(), b.len())
     }
 }
