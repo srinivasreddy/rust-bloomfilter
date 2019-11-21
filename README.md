@@ -29,6 +29,18 @@ for i 0..num_of_hashfuncs{
     self.bitvec.set(index, true);
 }
 ````
+## Usage
+````
+extern crate rust-bloomfilter;
+
+use rust-bloomfilter::BloomFilter;
+
+let mut b = BloomFilter(20000, 0.01);
+b.add("Helloworld");
+assert!(b.contains("Helloworld"));
+
+
+````
 ## Benchmarks
 TODO
 
