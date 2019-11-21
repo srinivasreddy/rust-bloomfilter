@@ -31,9 +31,9 @@ for i 0..num_of_hashfuncs{
 ````
 ## Usage
 ````
-extern crate rust-bloomfilter;
+extern crate rust_bloomfilter;
 
-use rust-bloomfilter::BloomFilter;
+use rust_bloomfilter::BloomFilter;
 
 let mut b = BloomFilter(20000, 0.01);
 b.add("Helloworld");
