@@ -124,6 +124,12 @@ mod tests {
 
     #[test]
     #[should_panic]
+    fn test_empty_bloom_negative_error_rate_filter() {
+        let _b = BloomFilter::from_elem(10, -0.010);
+    }
+
+    #[test]
+    #[should_panic]
     fn test_full_bloom_filter() {
         let mut b = BloomFilter::from_elem(10, 0.01);
         // Add 11 elements to the 10 capacity Bloomfilter
