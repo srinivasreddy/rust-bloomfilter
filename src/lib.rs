@@ -211,5 +211,8 @@ mod tests {
         assert_eq!(b.len(), 3);
         assert_eq!(b.add(elements[3].as_bytes()).unwrap(), true);
         assert_eq!(b.len(), 4);
+        for i in vec!["Srinivas", "Reddy"] {
+            assert!(b.contains(i.as_bytes()))
+        }
     }
 }
