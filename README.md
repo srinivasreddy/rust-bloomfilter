@@ -35,7 +35,7 @@ extern crate rust_bloomfilter;
 
 use rust_bloomfilter::BloomFilter;
 
-let mut b = BloomFilter(20000, 0.01);
+let mut b = BloomFilter(20000, 0.01, true);
 b.add("Helloworld");
 assert!(b.contains("Helloworld"));
 
