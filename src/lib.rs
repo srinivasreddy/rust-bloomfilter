@@ -13,6 +13,7 @@ pub struct BloomFilter {
     error_rate: f64,
     num_of_hashfuncs: usize,
     num_of_elements: usize,
+    dup_check: bool,
 }
 
 // m = math.ceil((n * math.log(p)) / math.log(1.0 / (pow(2.0, math.log(2.0)))))
@@ -30,12 +31,12 @@ fn iterations(m: usize, n: usize) -> usize {
 }
 
 impl BloomFilter {
-    pub fn from_elem(capacity: usize, error_rate: f64) -> BloomFilter {
+    pub fn from_elem(capacity: usize, error_rate: f64, dup_check: bool) -> BloomFilter {
         if capacity == 0 {
             panic!("capacity must be a greater than zero");
         }
-        if error_rate <= 0.0 {
-            panic!("error_rate must be greater than zero");
+        if error_rate <= 0.0 || error_rate > 1.0 {
+            panic!("error_rate must be greater than 0.0 and less than 1.0");
         }
         let num_of_bits = nbits(capacity, error_rate);
         let num_of_hashfuncs = iterations(num_of_bits, capacity);
@@ -45,6 +46,7 @@ impl BloomFilter {
             error_rate,
             num_of_hashfuncs,
             num_of_elements: 0,
+            dup_check,
         }
     }
 
@@ -75,14 +77,21 @@ impl BloomFilter {
         let hash64_first = (hash & (2_u128.pow(64) - 1)) as u64;
         let hash64_second = (hash >> 64) as u64;
         let mut result_hash: U512 = hash64_first.into();
+        let mut exists = true;
         for value in 0..self.num_of_hashfuncs {
             let temp: U512 = U512::from(value) * U512::from(hash64_second);
             result_hash = result_hash.add(temp);
             let index = result_hash % U512::from(self.bitvec_len());
+            if self.dup_check && self.bitvec.get(index.as_u64() as usize) == Some(false) {
+                exists = false;
+            }
             self.bitvec.set(index.as_u64() as usize, true);
         }
+        if self.dup_check && exists {
+            return Ok(false);
+        }
         self.num_of_elements += 1;
-        Ok(true)
+        return Ok(true);
     }
 
     pub fn contains(&self, data: &[u8]) -> bool {
@@ -108,30 +117,30 @@ mod tests {
 
     #[test]
     fn test_single_element() {
-        let mut b = BloomFilter::from_elem(20000, 0.01);
-        assert!(b.add("Test".as_ref()).unwrap(), true);
-        assert!(b.contains("Test".as_ref()));
+        let mut b = BloomFilter::from_elem(20000, 0.01, true);
+        assert!(b.add("Test".as_bytes()).unwrap(), true);
+        assert!(b.contains("Test".as_bytes()));
     }
     #[test]
     #[should_panic]
     fn test_empty_bloom_zero_capacity_filter() {
-        let _b = BloomFilter::from_elem(0, 0.01);
+        let _b = BloomFilter::from_elem(0, 0.01, true);
     }
     #[test]
     #[should_panic]
     fn test_empty_bloom_zero_error_rate_filter() {
-        let _b = BloomFilter::from_elem(10, 0.000);
+        let _b = BloomFilter::from_elem(10, 0.000, true);
     }
 
     #[test]
     #[should_panic]
     fn test_empty_bloom_negative_error_rate_filter() {
-        let _b = BloomFilter::from_elem(10, -0.010);
+        let _b = BloomFilter::from_elem(10, -0.010, true);
     }
 
     #[test]
     fn test_full_bloom_filter() {
-        let mut b = BloomFilter::from_elem(10, 0.01);
+        let mut b = BloomFilter::from_elem(10, 0.01, true);
         // Add 11 elements to the 10 capacity Bloomfilter
         let elements = vec![
             "Srinivas",
@@ -147,7 +156,7 @@ mod tests {
             "Telangana1",
         ];
         for element in &elements[..9] {
-            assert!(b.add(element.as_ref()).unwrap(), true);
+            assert!(b.add(element.as_bytes()).unwrap(), true);
         }
         assert!(
             b.add((&elements[10]).as_ref()).unwrap(),
@@ -157,7 +166,7 @@ mod tests {
 
     #[test]
     fn test_multiple_elements() {
-        let mut b = BloomFilter::from_elem(20000, 0.01);
+        let mut b = BloomFilter::from_elem(20000, 0.01, true);
         let elements = vec![
             "Srinivas",
             "Reddy",
@@ -168,12 +177,39 @@ mod tests {
             "506122",
         ];
         for element in &elements {
-            b.add(element.as_ref()).unwrap();
+            b.add(element.as_bytes()).unwrap();
         }
         for element in &elements {
-            assert!(b.contains(element.as_ref()));
+            assert!(b.contains(element.as_bytes()));
         }
-        assert_eq!(b.contains("rajaa".as_ref()), false);
+        assert_eq!(b.contains("rajaa".as_bytes()), false);
         assert_eq!(elements.len(), b.len())
+    }
+    #[test]
+    fn test_multiple_duplicate_elements() {
+        let mut b = BloomFilter::from_elem(20000, 0.01, true);
+        let elements = vec!["Srinivas", "Srinivas", "Reddy", "Reddy"];
+        assert_eq!(b.add(elements[0].as_bytes()).unwrap(), true);
+        assert_eq!(b.len(), 1);
+        assert_eq!(b.add(elements[1].as_bytes()).unwrap(), false);
+        assert_eq!(b.len(), 1);
+        assert_eq!(b.add(elements[2].as_bytes()).unwrap(), true);
+        assert_eq!(b.len(), 2);
+        assert_eq!(b.add(elements[3].as_bytes()).unwrap(), false);
+        assert_eq!(b.len(), 2);
+    }
+
+    #[test]
+    fn test_multiple_duplicate_elements_with_dup_check_false() {
+        let mut b = BloomFilter::from_elem(20000, 0.01, false);
+        let elements = vec!["Srinivas", "Srinivas", "Reddy", "Reddy"];
+        assert_eq!(b.add(elements[0].as_bytes()).unwrap(), true);
+        assert_eq!(b.len(), 1);
+        assert_eq!(b.add(elements[1].as_bytes()).unwrap(), true);
+        assert_eq!(b.len(), 2);
+        assert_eq!(b.add(elements[2].as_bytes()).unwrap(), true);
+        assert_eq!(b.len(), 3);
+        assert_eq!(b.add(elements[3].as_bytes()).unwrap(), true);
+        assert_eq!(b.len(), 4);
     }
 }
