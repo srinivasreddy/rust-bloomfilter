@@ -19,7 +19,7 @@ pub struct BloomFilter {
 }
 
 // Counting Bloomfilter gives the opportunity to check certain
-// elements crossed threshold.
+// elements crossed a certain threshold.
 // pub type CountingBloomFilter = BloomFilter;
 
 // The number of bits for the bloom filter is given by the following formula
@@ -79,7 +79,7 @@ impl BloomFilter {
 
     pub fn add(&mut self, data: &[u8]) -> Result<bool, &'static str> {
         if self.num_of_elements == self.capacity {
-            return Err("You are adding to the bloom filter that is full");
+            return Err("You are adding to the bloom filter that is already full");
         }
         let hash = hash128(data);
         let hash64_first = (hash & (2_u128.pow(64) - 1)) as u64;
