@@ -16,6 +16,11 @@ pub struct BloomFilter {
     dup_check: bool,
 }
 
+// Counting Bloomfilter gives the opportunity to check certain
+// elements crossed a certain threshold.
+// pub type CountingBloomFilter = BloomFilter;
+
+// The number of bits for the bloom filter is given by the following formula
 // m = math.ceil((n * math.log(p)) / math.log(1.0 / (pow(2.0, math.log(2.0)))))
 #[inline(always)]
 fn nbits(n: usize, p: f64) -> usize {
@@ -24,16 +29,18 @@ fn nbits(n: usize, p: f64) -> usize {
     (numerator / denominator).ceil() as usize
 }
 
-// k = round((m / n) * math.log(2));
+
+// Iterations gives the number of hash functions to be used.
+// The formula is : k = round((m / n) * math.log(2));
 #[inline(always)]
 fn iterations(m: usize, n: usize) -> usize {
     ((m as f64 / n as f64) * 2.0_f64.ln()).round() as usize
 }
 
 impl BloomFilter {
-    pub fn from_elem(capacity: usize, error_rate: f64, dup_check: bool) -> BloomFilter {
+    pub fn new(capacity: usize, error_rate: f64, dup_check: bool) -> BloomFilter {
         if capacity == 0 {
-            panic!("capacity must be a greater than zero");
+            panic!("capacity must be greater than zero");
         }
         if error_rate <= 0.0 || error_rate > 1.0 {
             panic!("error_rate must be greater than 0.0 and less than 1.0");
@@ -71,7 +78,7 @@ impl BloomFilter {
 
     pub fn add(&mut self, data: &[u8]) -> Result<bool, &'static str> {
         if self.num_of_elements == self.capacity {
-            return Err("You are adding to the bloom filter that is full");
+            return Err("You are adding to the bloom filter that is already full");
         }
         let hash = hash128(data);
         let hash64_first = (hash & (2_u128.pow(64) - 1)) as u64;
@@ -117,43 +124,44 @@ mod tests {
 
     #[test]
     fn test_single_element() {
-        let mut b = BloomFilter::from_elem(20000, 0.01, true);
+        let mut b = BloomFilter::new(20000, 0.01, true);
         assert!(b.add("Test".as_bytes()).unwrap(), true);
         assert!(b.contains("Test".as_bytes()));
     }
+
     #[test]
     #[should_panic]
     fn test_empty_bloom_zero_capacity_filter() {
-        let _b = BloomFilter::from_elem(0, 0.01, true);
+        let _b = BloomFilter::new(0, 0.01, true);
     }
     #[test]
     #[should_panic]
     fn test_empty_bloom_zero_error_rate_filter() {
-        let _b = BloomFilter::from_elem(10, 0.000, true);
+        let _b = BloomFilter::new(10, 0.000, true);
     }
 
     #[test]
     #[should_panic]
     fn test_empty_bloom_negative_error_rate_filter() {
-        let _b = BloomFilter::from_elem(10, -0.010, true);
+        let _b = BloomFilter::new(10, -0.010, true);
     }
 
     #[test]
     fn test_full_bloom_filter() {
-        let mut b = BloomFilter::from_elem(10, 0.01, true);
+        let mut b = BloomFilter::new(10, 0.01, true);
         // Add 11 elements to the 10 capacity Bloomfilter
         let elements = vec![
-            "Srinivas",
-            "Reddy",
-            "Gundrapally",
-            "Nekkonda",
-            "Warangal",
-            "Telangana",
-            "506122",
-            "Srinivas1",
-            "Reddy1",
-            "Gundrapally1",
-            "Telangana1",
+            "April is the cruellest month, breeding",
+            "Lilacs out of the dead land, mixing",
+            "Memory and desire, stirring",
+            "Dull roots with spring rain.",
+            "Winter kept us warm, covering",
+            "Earth in forgetful snow, feeding",
+            "A little life with dried tubers.",
+            "Summer surprised us, coming over the Starnbergersee",
+            "With a shower of rain; we stopped in the colonnade,",
+            "And went on in sunlight, into the Hofgarten,",
+            "And drank coffee, and talked for an hour.",
         ];
         for element in &elements[..9] {
             assert!(b.add(element.as_bytes()).unwrap(), true);
@@ -166,15 +174,15 @@ mod tests {
 
     #[test]
     fn test_multiple_elements() {
-        let mut b = BloomFilter::from_elem(20000, 0.01, true);
+        let mut b = BloomFilter::new(20000, 0.01, true);
         let elements = vec![
-            "Srinivas",
-            "Reddy",
-            "Gundrapally",
-            "Nekkonda",
-            "Warangal",
-            "Telangana",
-            "506122",
+            "Bin gar keine Russin, stamm’ aus Litauen, echt deutsch.",
+            "And when we were children, staying at the arch-duke’s,",
+            "My cousin’s, he took me out on a sled,",
+            "And I was frightened. He said, Marie,",
+            "Marie, hold on tight. And down we went.",
+            "In the mountains, there you feel free.",
+            "I read, much of the night, and go south in the winter.",
         ];
         for element in &elements {
             b.add(element.as_bytes()).unwrap();
@@ -182,13 +190,21 @@ mod tests {
         for element in &elements {
             assert!(b.contains(element.as_bytes()));
         }
-        assert_eq!(b.contains("rajaa".as_bytes()), false);
+        assert_eq!(
+            b.contains("What are the roots that clutch, what branches grow".as_bytes()),
+            false
+        );
         assert_eq!(elements.len(), b.len())
     }
     #[test]
     fn test_multiple_duplicate_elements() {
-        let mut b = BloomFilter::from_elem(20000, 0.01, true);
-        let elements = vec!["Srinivas", "Srinivas", "Reddy", "Reddy"];
+        let mut b = BloomFilter::new(20000, 0.01, true);
+        let elements = vec![
+            "Out of this stony rubbish? Son of man,",
+            "Out of this stony rubbish? Son of man,",
+            "You cannot say, or guess, for you know only",
+            "You cannot say, or guess, for you know only",
+        ];
         assert_eq!(b.add(elements[0].as_bytes()).unwrap(), true);
         assert_eq!(b.len(), 1);
         assert_eq!(b.add(elements[1].as_bytes()).unwrap(), false);
@@ -201,8 +217,13 @@ mod tests {
 
     #[test]
     fn test_multiple_duplicate_elements_with_dup_check_false() {
-        let mut b = BloomFilter::from_elem(20000, 0.01, false);
-        let elements = vec!["Srinivas", "Srinivas", "Reddy", "Reddy"];
+        let mut b = BloomFilter::new(20000, 0.01, false);
+        let elements = vec![
+            "A heap of broken images, where the sun beats,",
+            "A heap of broken images, where the sun beats,",
+            "And the dead tree gives no shelter, the cricket no relief,",
+            "And the dead tree gives no shelter, the cricket no relief,",
+        ];
         assert_eq!(b.add(elements[0].as_bytes()).unwrap(), true);
         assert_eq!(b.len(), 1);
         assert_eq!(b.add(elements[1].as_bytes()).unwrap(), true);
@@ -211,7 +232,10 @@ mod tests {
         assert_eq!(b.len(), 3);
         assert_eq!(b.add(elements[3].as_bytes()).unwrap(), true);
         assert_eq!(b.len(), 4);
-        for i in vec!["Srinivas", "Reddy"] {
+        for i in vec![
+            "A heap of broken images, where the sun beats,",
+            "And the dead tree gives no shelter, the cricket no relief,",
+        ] {
             assert!(b.contains(i.as_bytes()))
         }
     }

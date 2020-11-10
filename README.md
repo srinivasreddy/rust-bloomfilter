@@ -17,7 +17,7 @@ k = round(log(2.0) * m / n);
 ```
 ## Design
 I use murmur3 hash to generate 128 bit hash integer, and then i split it into two integers of 64 bits each.
-Following is pseudo-code written for the design of bloom filter.
+Following is the pseudo-code written for the design of bloom filter.
 
 ````
 let hash_128 = murmur3_hash(data);
