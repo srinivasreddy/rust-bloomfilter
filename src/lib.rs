@@ -17,7 +17,7 @@ pub struct BloomFilter {
 }
 
 // m = math.ceil((n * math.log(p)) / math.log(1.0 / (pow(2.0, math.log(2.0)))))
-#[inline]
+#[inline(always)]
 fn nbits(n: usize, p: f64) -> usize {
     let numerator = n as f64 * p.ln();
     let denominator = (1.0_f64 / 2.0_f64.powf(2.0_f64.ln())).ln();
@@ -25,7 +25,7 @@ fn nbits(n: usize, p: f64) -> usize {
 }
 
 // k = round((m / n) * math.log(2));
-#[inline]
+#[inline(always)]
 fn iterations(m: usize, n: usize) -> usize {
     ((m as f64 / n as f64) * 2.0_f64.ln()).round() as usize
 }
