@@ -7,6 +7,9 @@ use bit_vec::BitVec;
 use fasthash::murmur3::hash128;
 use std::ops::Add;
 
+/// I have intentionally made the BloomFilter type opaque.
+/// It accepts any kind of input as long as it can be converted to bytes.
+
 pub struct BloomFilter {
     capacity: usize,
     bitvec: BitVec,
@@ -16,7 +19,7 @@ pub struct BloomFilter {
     dup_check: bool,
 }
 
-// The number of bits for the bloom filter is given by the following formula
+// The number of bits for bloom filter is given by the following formula
 // m = math.ceil((n * math.log(p)) / math.log(1.0 / (pow(2.0, math.log(2.0)))))
 #[inline(always)]
 fn nbits(n: usize, p: f64) -> usize {
@@ -24,7 +27,6 @@ fn nbits(n: usize, p: f64) -> usize {
     let denominator = (1.0_f64 / 2.0_f64.powf(2.0_f64.ln())).ln();
     (numerator / denominator).ceil() as usize
 }
-
 
 // Iterations gives the number of hash functions to be used.
 // The formula is : k = round((m / n) * math.log(2));
@@ -51,6 +53,13 @@ impl BloomFilter {
             num_of_elements: 0,
             dup_check,
         }
+    }
+    // Here the error rate is assumed as 0.01
+    pub fn new_with_default_error_rate(capacity:usize, dup_check:bool) -> BloomFilter{
+        if capacity == 0 {
+            panic!("capacity must be greater than zero");
+        }
+        BloomFilter::new(capacity, 0.01, dup_check)
     }
 
     pub fn bitvec_len(&self) -> usize {
@@ -121,8 +130,27 @@ mod tests {
     #[test]
     fn test_single_element() {
         let mut b = BloomFilter::new(20000, 0.01, true);
-        assert!(b.add("Test".as_bytes()).unwrap(), true);
+        assert_eq!(b.add("Test".as_bytes()).unwrap(), true);
         assert!(b.contains("Test".as_bytes()));
+    }
+
+    #[test]
+    fn test_multiple_types() {
+        let mut b = BloomFilter::new(20000, 0.01, true);
+        assert_eq!(b.add("Test".as_bytes()).unwrap(), true);
+        assert!(b.contains("Test".as_bytes()));
+        assert_eq!(b.add(&1_u8.to_ne_bytes()).unwrap(), true);
+        assert!(b.contains(&1_u8.to_ne_bytes()));
+        assert_eq!(b.add(&1_i32.to_ne_bytes()).unwrap(), true);
+        assert!(b.contains(&1_i32.to_ne_bytes()));
+        assert_eq!(b.add(&1_i64.to_ne_bytes()).unwrap(), true);
+        assert!(b.contains(&1_i64.to_ne_bytes()));
+        assert_eq!(b.add(&1.0_f32.to_bits().to_be_bytes()).unwrap(), true);
+        assert!(b.contains(&1.0_f32.to_bits().to_be_bytes()));
+        assert_eq!(b.add(&12131231231231321123.0_f64.to_bits().to_be_bytes()).unwrap(), true);
+        assert!(b.contains(&12131231231231321123.0_f64.to_bits().to_be_bytes()));
+        assert_eq!(b.add(&1.33333333333333333_f32.to_bits().to_be_bytes()).unwrap(), true);
+        assert!(b.contains(&1.33333333333333333_f32.to_bits().to_be_bytes()));
     }
 
     #[test]
@@ -160,7 +188,7 @@ mod tests {
             "And drank coffee, and talked for an hour.",
         ];
         for element in &elements[..9] {
-            assert!(b.add(element.as_bytes()).unwrap(), true);
+            assert_eq!(b.add(element.as_bytes()).unwrap(), true);
         }
         assert!(
             b.add((&elements[10]).as_ref()).unwrap(),
@@ -234,5 +262,12 @@ mod tests {
         ] {
             assert!(b.contains(i.as_bytes()))
         }
+    }
+
+    #[test]
+    fn test_new_with_default_error_rate() {
+        let mut b = BloomFilter::new_with_default_error_rate(20000, true);
+        assert_eq!(b.add("Test".as_bytes()).unwrap(), true);
+        assert!(b.contains("Test".as_bytes()));
     }
 }
