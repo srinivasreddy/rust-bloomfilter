@@ -40,23 +40,3 @@ b.add("Helloworld");
 assert!(b.contains("Helloworld"));
 
 ````
-## TODO
-
-1.Adding a constructor for creating a bloomfilter from a BitVec and a number of hash functions
- (so the user can choose how they want to initialize the bloomfilter).If you do that and you
- allow the user to access the bitvec,than they can serialize/deserialize the bloomfilter.
- This way they can create persistent bloomfilters.
-
-2.Consider at least rounding up to whole bytes, as those bits are just wasted otherwise.
-But in most circumstances it makes sense to round up to a whole cache line (64 bytes for Intel CPUs).
-Rounding up to some sane number of bits lowers your false positive rate and won't increase
-the cache footprint of the bloomfilter.
-
-## Benchmarks
-TODO
-
-## Performance
-
-TODO
-## Compliance with the probability of false positives
-TODO

@@ -16,10 +16,6 @@ pub struct BloomFilter {
     dup_check: bool,
 }
 
-// Counting Bloomfilter gives the opportunity to check certain
-// elements crossed a certain threshold.
-// pub type CountingBloomFilter = BloomFilter;
-
 // The number of bits for the bloom filter is given by the following formula
 // m = math.ceil((n * math.log(p)) / math.log(1.0 / (pow(2.0, math.log(2.0)))))
 #[inline(always)]
